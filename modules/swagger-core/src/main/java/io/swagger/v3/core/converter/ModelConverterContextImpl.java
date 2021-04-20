@@ -2,10 +2,6 @@ package io.swagger.v3.core.converter;
 
 import io.swagger.v3.core.util.OptionalUtils;
 import io.swagger.v3.oas.models.media.Schema;
-import org.apache.commons.lang3.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -16,6 +12,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ModelConverterContextImpl implements ModelConverterContext {
     private static final Logger LOGGER = LoggerFactory.getLogger(ModelConverterContextImpl.class);
@@ -24,12 +23,14 @@ public class ModelConverterContextImpl implements ModelConverterContext {
     private final Map<String, Schema> modelByName;
     private final HashMap<AnnotatedType, Schema> modelByType;
     private final Set<AnnotatedType> processedTypes;
+    private final Set<AnnotatedType> processingTypes;
 
     public ModelConverterContextImpl(List<ModelConverter> converters) {
         this.converters = converters;
         modelByName = new TreeMap<>();
         modelByType = new HashMap<>();
         processedTypes = new HashSet<>();
+        processingTypes = new HashSet<>();
     }
 
     public ModelConverterContextImpl(ModelConverter converter) {
@@ -83,8 +84,11 @@ public class ModelConverterContextImpl implements ModelConverterContext {
 
         if (processedTypes.contains(type)) {
             return modelByType.get(type);
+        } else if (processingTypes.contains(type)) {
+            processingTypes.remove(type);
+            return modelByType.get(type);
         } else {
-            processedTypes.add(type);
+            processingTypes.add(type);
         }
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug(String.format("resolve %s", type.getType()));
@@ -98,13 +102,14 @@ public class ModelConverterContextImpl implements ModelConverterContext {
         }
         if (resolved != null) {
             modelByType.put(type, resolved);
+            processedTypes.add(type);
 
             Schema resolvedImpl = resolved;
             if (resolvedImpl.getName() != null) {
                 modelByName.put(resolvedImpl.getName(), resolved);
             }
         } else {
-            processedTypes.remove(type);
+            processingTypes.remove(type);
         }
 
         return resolved;
